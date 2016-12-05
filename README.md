@@ -1,5 +1,60 @@
 Playing around here, nothing set in stone.
 
+## Goal:
+
+To allow more languages to be "documented" on CodeTriage
+
+## Assumptions:
+
+You will need to install a language to generate docs for that lang.
+
+## Concerns:
+
+I want the core web app to be semi-easy-ish to maintain. This means we cannot require installation of X number of languages as a requirement for simply keeping it bootable.
+
+# Approach:
+
+## Boot a language
+
+Each language would get it's own app. It would Run Ruby and whatever the other buildpack required to generate docs is, such as Crystal. This also buys us horizontal scale as we can potentially scale up or down a language based on it's usage.
+
+## Write docs
+
+To do this I want to define an interface where each language can have a script. We pass that script the location to a directory with a project already cloned, that script then generates docs and writes them to an intermediary file. I'm currently thinking newline seperated json blobs. I've got an example in the `JSON doc entry` below
+
+## Save docs
+
+Once that file is written, we can find some way to import the results back into the main CodeTriage database.
+
+This is more an implementation "detail", I've thought of a few ways we can send the docs back to the main app.
+
+- Write directly to the DB via shared DB credentials
+  - Pros:
+    - Rolling DB credentials happens automatically via attached addons
+    - Most direct method of recording docs, as it eventually has to make it into the database
+  - Cons:
+    - Shared DB connection is major coupling. Consumes a DB connection (not free)
+
+- Write to a shared redis (sidekiq) queue
+  - Pros:
+    - Rolling Redis credentials happens automatically via attached addons
+    - Slight seperation of concerns compared to writing to the DB
+  - Cons:
+    - Increased worker load, still have to unpack and write to the database once dequeued
+    - Shared reddis connection is major coupling. Consumes a redis connection (not free)
+
+- Post back to the app via an API
+  - Pros:
+    - Clean seperation of concerns, the language apps don't need to share any connections
+  - Cons:
+    - Have to home-bake security, manually roll some kind of a secret token
+    - Lots of extra load on the main website
+
+
+I'll also mention we need to think about how we want to notify each language doc app about what docs need to be written. I.e. our main app might know that `rails/rails` needs new docs, but our doc app needs to know that.
+
+Whatever we do to save the docs makes this step easier or harder. For example. If we have our doc app connect and query the database directly then it is pretty easy to also save the docs via a database. Same goes for redis, and the API method, we would already have to maintain a secret token system.
+
 ## Writing a Doc Parser
 
 CodeTriage supports sending people documented and undocumented methods. It has native support for Ruby, because thats what [@schneems](https://www.twitter.com/schneems) writes in. However there is an API for getting your favorite "language" supported.
