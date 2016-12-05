@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+require 'docs_doctor'
+
+argv = ARGV.dup
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: $ docs_doctor enqueue:all --language=Ruby --script_path=<path/to/parsing/script>"
+
+  opts.on("-l", "--language", "Computer language of target project") do |lang|
+    options[:language] = lang
+  end
+  opts.on("-p", "--script_path", "Location of the script that needs to be run to generate documentation") do |path|
+    options[:script_path] = path
+  end
+end.parse!
+
+
+cli = DocsDoctor::CLI.new(argv, **options)
+
+case command = argv.first
+when "enqueue:all"
+  cli.enqueue
+else
+  "No command found for #{command}"
+end
